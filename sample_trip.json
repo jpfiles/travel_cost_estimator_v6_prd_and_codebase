@@ -1,0 +1,103 @@
+{
+    "metadata": {
+        "version": "6.0",
+        "created": "2026-07-21T11:41:36",
+        "last_modified": "2026-07-21T11:41:36"
+    },
+    "traveler": {
+        "name": "Jonah Pickens",
+        "destination": "Honolulu, Hawaii",
+        "departure_date": "07/10/2026",
+        "return_date": "07/15/2026"
+    },
+    "major_bookings": {
+        "airfare": {
+            "display_name": "Airfare",
+            "included": false,
+            "description": "",
+            "cost": 0.0
+        },
+        "hotel": {
+            "display_name": "Hotel",
+            "included": false,
+            "description": "",
+            "cost": 0.0
+        },
+        "rental_car": {
+            "display_name": "Rental Car",
+            "included": false,
+            "description": "",
+            "cost": 0.0
+        }
+    },
+    "other_expenses": {
+        "pov_mileage": {
+            "display_name": "POV Mileage",
+            "included": false,
+            "cost": 0.0
+        },
+        "rental_car_fuel": {
+            "display_name": "Rental Car Fuel",
+            "included": false,
+            "cost": 0.0
+        },
+        "baggage_fees": {
+            "display_name": "Baggage Fees",
+            "included": false,
+            "cost": 0.0
+        },
+        "hotel_taxes": {
+            "display_name": "Hotel Taxes",
+            "included": false,
+            "cost": 0.0
+        },
+        "resort_fees": {
+            "display_name": "Resort Fees",
+            "included": false,
+            "cost": 0.0
+        },
+        "tolls": {
+            "display_name": "Tolls",
+            "included": false,
+            "cost": 0.0
+        },
+        "advanced_travel_fees": {
+            "display_name": "ADTRAV Fees",
+            "included": false,
+            "cost": 0.0
+        },
+        "airport_parking": {
+            "display_name": "Airport Parking",
+            "included": false,
+            "cost": 0.0
+        },
+        "hotel_parking": {
+            "display_name": "Hotel Parking",
+            "included": false,
+            "cost": 0.0
+        },
+        "uber_taxi": {
+            "display_name": "Uber/Taxi Services",
+            "included": false,
+            "cost": 0.0
+        },
+        "miscellaneous": {
+            "display_name": "Miscellaneous",
+            "included": false,
+            "cost": 0.0
+        }
+    },
+    "per_diem": {
+        "daily_rate": 0.0,
+        "travel_days": 0,
+        "full_rate_days": 0,
+        "travel_rate_days": 2,
+        "total": 0.0
+    },
+    "totals": {
+        "major_bookings": 0.0,
+        "other_expenses": 0.0,
+        "per_diem": 0.0,
+        "grand_total": 0.0
+    }
+}
