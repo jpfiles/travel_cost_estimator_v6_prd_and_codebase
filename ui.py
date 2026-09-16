@@ -15,7 +15,7 @@ class TravelCostEstimatorApp:
 
     def __init__(self, root):
         self.root = root
-
+        self.major_booking_vars = {}
         self.root.title(WINDOW_TITLE)
         self.root.geometry(DEFAULT_WINDOW_GEOMETRY)
         self.root.minsize(
@@ -124,6 +124,7 @@ class TravelCostEstimatorApp:
         )
 
         self.create_traveler_section()                
+        self.create_input_notebook()
 
     def create_traveler_section(self):
         """Create the traveler and trip-date input fields."""
@@ -259,6 +260,164 @@ class TravelCostEstimatorApp:
             )
 
         self.name_entry.focus_set()
+
+    def create_input_notebook(self):
+        """Create the tabbed travel-cost input workspace."""
+        self.input_notebook = ttk.Notebook(
+            self.main_frame,
+        )
+        self.input_notebook.pack(
+            fill="both",
+            expand=True,
+            pady=(15, 0),
+        )
+
+        self.major_bookings_tab = ttk.Frame(
+            self.input_notebook,
+            padding=15,
+        )
+        self.other_expenses_tab = ttk.Frame(
+            self.input_notebook,
+            padding=15,
+        )
+        self.per_diem_tab = ttk.Frame(
+            self.input_notebook,
+            padding=15,
+        )
+
+        self.input_notebook.add(
+            self.major_bookings_tab,
+            text="Major Bookings",
+        )
+        self.input_notebook.add(
+            self.other_expenses_tab,
+            text="Other Expenses",
+        )
+        self.input_notebook.add(
+            self.per_diem_tab,
+            text="Per Diem",
+        )
+
+        self.create_major_bookings_tab()
+
+    def create_major_bookings_tab(self):
+        """Create the major-booking input table."""
+        self.major_bookings_tab.columnconfigure(
+            1,
+            weight=1,
+        )
+
+        ttk.Label(
+            self.major_bookings_tab,
+            text="Include",
+            font=("Segoe UI", 10, "bold"),
+        ).grid(
+            row=0,
+            column=0,
+            sticky="w",
+            padx=(0, 15),
+            pady=(0, 10),
+        )
+
+        ttk.Label(
+            self.major_bookings_tab,
+            text="Booking and Description",
+            font=("Segoe UI", 10, "bold"),
+        ).grid(
+            row=0,
+            column=1,
+            sticky="w",
+            padx=(0, 15),
+            pady=(0, 10),
+        )
+
+        ttk.Label(
+            self.major_bookings_tab,
+            text="Cost",
+            font=("Segoe UI", 10, "bold"),
+        ).grid(
+            row=0,
+            column=2,
+            sticky="e",
+            pady=(0, 10),
+        )
+
+        for row_number, (
+            booking_key,
+            booking,
+        ) in enumerate(
+            self.travel_request[
+                "major_bookings"
+            ].items(),
+            start=1,
+        ):
+            included_var = tk.BooleanVar(
+                master=self.root,
+                value=booking["included"],
+            )
+            description_var = tk.StringVar(
+                master=self.root,
+                value=booking["description"],
+            )
+            cost_var = tk.StringVar(
+                master=self.root,
+                value=f"{booking['cost']:.2f}",
+            )
+
+            self.major_booking_vars[
+                booking_key
+            ] = {
+                "included": included_var,
+                "description": description_var,
+                "cost": cost_var,
+            }
+
+            include_checkbox = ttk.Checkbutton(
+                self.major_bookings_tab,
+                text=booking["display_name"],
+                variable=included_var,
+                command=self.mark_modified,
+            )
+            include_checkbox.grid(
+                row=row_number,
+                column=0,
+                sticky="w",
+                padx=(0, 15),
+                pady=6,
+            )
+
+            description_entry = ttk.Entry(
+                self.major_bookings_tab,
+                textvariable=description_var,
+            )
+            description_entry.grid(
+                row=row_number,
+                column=1,
+                sticky="ew",
+                padx=(0, 15),
+                pady=6,
+            )
+            description_entry.bind(
+                "<KeyRelease>",
+                self.mark_modified,
+            )
+
+            cost_entry = ttk.Entry(
+                self.major_bookings_tab,
+                textvariable=cost_var,
+                width=16,
+                justify="right",
+            )
+            cost_entry.grid(
+                row=row_number,
+                column=2,
+                sticky="e",
+                pady=6,
+            )
+            cost_entry.bind(
+                "<KeyRelease>",
+                self.mark_modified,
+            )        
 
     def mark_modified(self, event=None):
         """Mark the current project as having unsaved changes."""
