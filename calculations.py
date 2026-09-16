@@ -1,49 +1,120 @@
-from travel_model import create_travel_request
 from datetime import datetime
+from math import isfinite
+
+
+DATE_FORMAT = "%m/%d/%Y"
+
+
+def validate_non_negative_number(value, field_name):
+    """
+    Validate that a monetary value is a finite, non-negative number.
+
+    Args:
+        value: The value being validated.
+        field_name: User-friendly field name for error messages.
+
+    Returns:
+        The value converted to a float.
+
+    Raises:
+        ValueError: If the value is not a valid non-negative number.
+    """
+
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field_name} must be a number.")
+
+    if not isfinite(value):
+        raise ValueError(f"{field_name} must be a finite number.")
+
+    if value < 0:
+        raise ValueError(f"{field_name} cannot be negative.")
+
+    return float(value)
+
 
 def calculate_major_booking_total(major_bookings):
     """
-    Calculate the total cost of all major bookings.
+    Calculate the total cost of all included major bookings.
+
+    Args:
+        major_bookings: Dictionary containing the major bookings.
 
     Returns:
-        Float representing the total booking cost.
+        The rounded total booking cost.
+
+    Raises:
+        ValueError: If an included booking contains an invalid cost.
     """
 
     booking_total = 0.00
 
     for booking in major_bookings.values():
-        
         if booking["included"]:
-            booking_total += booking["cost"]
-            
-    return booking_total
+            cost = validate_non_negative_number(
+                booking["cost"],
+                "Booking cost",
+            )
+            booking_total += cost
 
-###############################################################################################################
+    return round(booking_total, 2)
+
 
 def calculate_other_expense_total(other_expenses):
     """
-    Calculate the total of all additional travel expenses.
+    Calculate the total cost of all included additional expenses.
+
+    Args:
+        other_expenses: Dictionary containing additional expenses.
+
+    Returns:
+        The rounded total of all included additional expenses.
+
+    Raises:
+        ValueError: If an included expense contains an invalid cost.
     """
 
     other_total = 0.00
 
     for expense in other_expenses.values():
-
         if expense["included"]:
-            other_total += expense["cost"]
+            cost = validate_non_negative_number(
+                expense["cost"],
+                "Expense cost",
+            )
+            other_total += cost
 
-    return other_total
+    return round(other_total, 2)
 
-###############################################################################################################
 
 def calculate_grand_total(
     booking_total,
     other_total,
-    per_diem_total
+    per_diem_total,
 ):
     """
     Calculate the estimated total trip cost.
+
+    Args:
+        booking_total: Total cost of major bookings.
+        other_total: Total cost of other travel expenses.
+        per_diem_total: Total per diem cost.
+
+    Returns:
+        The rounded estimated trip cost.
     """
+
+    booking_total = validate_non_negative_number(
+        booking_total,
+        "Booking total",
+    )
+    other_total = validate_non_negative_number(
+        other_total,
+        "Other expense total",
+    )
+    per_diem_total = validate_non_negative_number(
+        per_diem_total,
+        "Per diem total",
+    )
 
     grand_total = (
         booking_total
@@ -51,72 +122,134 @@ def calculate_grand_total(
         + per_diem_total
     )
 
-    return grand_total
+    return round(grand_total, 2)
 
-###############################################################################################################
+
+def parse_travel_date(date_string):
+    """
+    Convert a travel-date string into a datetime object.
+
+    Args:
+        date_string: Date formatted as MM/DD/YYYY.
+
+    Returns:
+        A datetime object.
+
+    Raises:
+        ValueError: If the date is missing or incorrectly formatted.
+    """
+
+    try:
+        return datetime.strptime(
+            date_string,
+            DATE_FORMAT,
+        )
+    except (TypeError, ValueError):
+        raise ValueError(
+            "Dates must use MM/DD/YYYY format."
+        ) from None
+
 
 def calculate_per_diem(travel_request):
     """
-    Calculate the number of travel days and the total per diem.
+    Calculate the trip length and total per diem.
 
-    The first and last travel days receive 75% of the daily rate.
-    Every day between them receives 100% of the daily rate.
+    The first and last travel days receive 75 percent of the daily
+    rate. Every day between them receives 100 percent of the rate.
 
     The calculated values are stored in the travel request dictionary.
+
+    Args:
+        travel_request: Travel-request dictionary containing dates
+            and the daily per diem rate.
+
+    Returns:
+        The rounded total per diem.
+
+    Raises:
+        ValueError: If dates or the daily rate are invalid.
     """
 
-    # Retrieve the dates stored in the traveler section.
-    departure_date_string = travel_request["traveler"]["departure_date"]
-    return_date_string = travel_request["traveler"]["return_date"]
+    departure_date_string = travel_request[
+        "traveler"
+    ]["departure_date"]
 
-    # Convert the date strings into datetime objects.
-    departure_date = datetime.strptime(
-        departure_date_string,
-        "%m/%d/%Y"
+    return_date_string = travel_request[
+        "traveler"
+    ]["return_date"]
+
+    if not departure_date_string or not return_date_string:
+        raise ValueError(
+            "Departure and return dates are required."
+        )
+
+    departure_date = parse_travel_date(
+        departure_date_string
+    )
+    return_date = parse_travel_date(
+        return_date_string
     )
 
-    return_date = datetime.strptime(
-        return_date_string,
-        "%m/%d/%Y"
-    )
+    if return_date < departure_date:
+        raise ValueError(
+            "Return date must be after departure date."
+        )
 
-    # Calculate the number of days between the dates.
-    # Add 1 so both the departure and return dates are counted.
-    travel_days = (return_date - departure_date).days + 1
+    travel_days = (
+        return_date - departure_date
+    ).days + 1
 
-    # The application supports trips lasting at least two days.
     if travel_days < 2:
-        raise ValueError("Travel must last at least two days.")
+        raise ValueError(
+            "Travel must last at least two days."
+        )
 
-    # Retrieve the daily per diem rate from the model.
-    daily_rate = travel_request["per_diem"]["daily_rate"]
+    daily_rate = validate_non_negative_number(
+        travel_request["per_diem"]["daily_rate"],
+        "Per diem rate",
+    )
 
-    # The first and last days are travel-rate days.
     travel_rate_days = 2
-
-    # Every day between the first and last is a full-rate day.
     full_rate_days = travel_days - travel_rate_days
 
-    # Calculate the two per diem subtotals.
     full_rate_total = full_rate_days * daily_rate
-    travel_rate_total = travel_rate_days * daily_rate * 0.75
 
-    # Add both subtotals together.
-    per_diem_total = full_rate_total + travel_rate_total
+    travel_rate_total = (
+        travel_rate_days
+        * daily_rate
+        * 0.75
+    )
 
-    # Store the calculated values back in the travel request.
-    travel_request["per_diem"]["travel_days"] = travel_days
-    travel_request["per_diem"]["full_rate_days"] = full_rate_days
-    travel_request["per_diem"]["travel_rate_days"] = travel_rate_days
-    travel_request["per_diem"]["total"] = per_diem_total
+    per_diem_total = round(
+        full_rate_total + travel_rate_total,
+        2,
+    )
+
+    travel_request["per_diem"]["travel_days"] = (
+        travel_days
+    )
+    travel_request["per_diem"]["full_rate_days"] = (
+        full_rate_days
+    )
+    travel_request["per_diem"]["travel_rate_days"] = (
+        travel_rate_days
+    )
+    travel_request["per_diem"]["total"] = (
+        per_diem_total
+    )
 
     return per_diem_total
 
-###############################################################################################################
 
 def calculate_trip_totals(travel_request):
     """
-    Calculate all travel costs and store the results in the model.
+    Calculate and store all travel-cost totals.
+
+    Args:
+        travel_request: Complete travel-request dictionary.
+
+    Returns:
+        The rounded grand total.
     """
 
     booking_total = calculate_major_booking_total(
@@ -127,43 +260,27 @@ def calculate_trip_totals(travel_request):
         travel_request["other_expenses"]
     )
 
-    per_diem_total = calculate_per_diem(travel_request)
+    per_diem_total = calculate_per_diem(
+        travel_request
+    )
 
     grand_total = calculate_grand_total(
         booking_total,
         other_total,
-        per_diem_total
+        per_diem_total,
     )
 
-    travel_request["totals"]["major_bookings"] = booking_total
-    travel_request["totals"]["other_expenses"] = other_total
-    travel_request["totals"]["per_diem"] = per_diem_total
-    travel_request["totals"]["grand_total"] = grand_total
+    travel_request["totals"]["major_bookings"] = (
+        booking_total
+    )
+    travel_request["totals"]["other_expenses"] = (
+        other_total
+    )
+    travel_request["totals"]["per_diem"] = (
+        per_diem_total
+    )
+    travel_request["totals"]["grand_total"] = (
+        grand_total
+    )
 
     return grand_total
-
-### TEMPORARY TEST BLOCK BELOW ###
-
-if __name__ == "__main__":
-    trip = create_travel_request()
-
-    trip["traveler"]["departure_date"] = "07/10/2026"
-    trip["traveler"]["return_date"] = "07/15/2026"
-
-    trip["major_bookings"]["airfare"]["included"] = True
-    trip["major_bookings"]["airfare"]["cost"] = 650.00
-
-    trip["major_bookings"]["hotel"]["included"] = True
-    trip["major_bookings"]["hotel"]["cost"] = 1200.00
-
-    trip["other_expenses"]["airport_parking"]["included"] = True
-    trip["other_expenses"]["airport_parking"]["cost"] = 90.00
-
-    trip["per_diem"]["daily_rate"] = 100.00
-
-    calculate_trip_totals(trip)
-
-    print(f"Major bookings: ${trip['totals']['major_bookings']:.2f}")
-    print(f"Other expenses: ${trip['totals']['other_expenses']:.2f}")
-    print(f"Per diem: ${trip['totals']['per_diem']:.2f}")
-    print(f"Grand total: ${trip['totals']['grand_total']:.2f}")
