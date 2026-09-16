@@ -1,12 +1,17 @@
+import csv
+from html import escape
+from io import StringIO
+
+
 def generate_text_report(travel_request):
     """
-    Generate a formatted text report from a travel request.
+    Generate a formatted plain-text travel cost report.
 
     Args:
-        travel_request: The completed travel request dictionary.
+        travel_request: Completed travel-request dictionary.
 
     Returns:
-        A formatted string containing the travel cost report.
+        A formatted plain-text report.
     """
 
     traveler = travel_request["traveler"]
@@ -23,10 +28,18 @@ def generate_text_report(travel_request):
 
     report_lines.append("TRAVELER INFORMATION")
     report_lines.append("-" * 50)
-    report_lines.append(f"Traveler: {traveler['name']}")
-    report_lines.append(f"Destination: {traveler['destination']}")
-    report_lines.append(f"Departure Date: {traveler['departure_date']}")
-    report_lines.append(f"Return Date: {traveler['return_date']}")
+    report_lines.append(
+        f"Traveler: {traveler['name']}"
+    )
+    report_lines.append(
+        f"Destination: {traveler['destination']}"
+    )
+    report_lines.append(
+        f"Departure Date: {traveler['departure_date']}"
+    )
+    report_lines.append(
+        f"Return Date: {traveler['return_date']}"
+    )
     report_lines.append("")
 
     report_lines.append("MAJOR BOOKINGS")
@@ -35,11 +48,13 @@ def generate_text_report(travel_request):
     for booking in major_bookings.values():
         if booking["included"]:
             report_lines.append(
-                f"{booking['display_name']}: ${booking['cost']:.2f}"
+                f"{booking['display_name']}: "
+                f"${booking['cost']:.2f}"
             )
 
     report_lines.append(
-        f"Major Bookings Total: ${totals['major_bookings']:.2f}"
+        "Major Bookings Total: "
+        f"${totals['major_bookings']:.2f}"
     )
     report_lines.append("")
 
@@ -49,11 +64,13 @@ def generate_text_report(travel_request):
     for expense in other_expenses.values():
         if expense["included"]:
             report_lines.append(
-                f"{expense['display_name']}: ${expense['cost']:.2f}"
+                f"{expense['display_name']}: "
+                f"${expense['cost']:.2f}"
             )
 
     report_lines.append(
-        f"Other Expenses Total: ${totals['other_expenses']:.2f}"
+        "Other Expenses Total: "
+        f"${totals['other_expenses']:.2f}"
     )
     report_lines.append("")
 
@@ -69,7 +86,8 @@ def generate_text_report(travel_request):
         f"Full-Rate Days: {per_diem['full_rate_days']}"
     )
     report_lines.append(
-        f"Travel-Rate Days: {per_diem['travel_rate_days']}"
+        f"Travel-Rate Days: "
+        f"{per_diem['travel_rate_days']}"
     )
     report_lines.append(
         f"Per Diem Total: ${totals['per_diem']:.2f}"
@@ -84,32 +102,396 @@ def generate_text_report(travel_request):
 
     return "\n".join(report_lines)
 
-### TEMPORARY TEST BLOCK BELOW ###
 
-if __name__ == "__main__":
-    from travel_model import create_travel_request
-    from calculations import calculate_trip_totals
+def generate_csv_report(travel_request):
+    """
+    Generate a CSV travel cost report.
 
-    trip = create_travel_request()
+    Args:
+        travel_request: Completed travel-request dictionary.
 
-    trip["traveler"]["name"] = "Jonah Pickens"
-    trip["traveler"]["destination"] = "Honolulu, Hawaii"
-    trip["traveler"]["departure_date"] = "07/10/2026"
-    trip["traveler"]["return_date"] = "07/15/2026"
+    Returns:
+        CSV-formatted report content as a string.
+    """
 
-    trip["major_bookings"]["airfare"]["included"] = True
-    trip["major_bookings"]["airfare"]["cost"] = 650.00
+    traveler = travel_request["traveler"]
+    major_bookings = travel_request["major_bookings"]
+    other_expenses = travel_request["other_expenses"]
+    per_diem = travel_request["per_diem"]
+    totals = travel_request["totals"]
 
-    trip["major_bookings"]["hotel"]["included"] = True
-    trip["major_bookings"]["hotel"]["cost"] = 1200.00
+    output = StringIO(newline="")
+    writer = csv.writer(output)
 
-    trip["other_expenses"]["airport_parking"]["included"] = True
-    trip["other_expenses"]["airport_parking"]["cost"] = 90.00
+    writer.writerow(
+        [
+            "Section",
+            "Item",
+            "Description",
+            "Amount",
+        ]
+    )
 
-    trip["per_diem"]["daily_rate"] = 100.00
+    writer.writerow(
+        [
+            "Traveler Information",
+            "Traveler",
+            traveler["name"],
+            "",
+        ]
+    )
+    writer.writerow(
+        [
+            "Traveler Information",
+            "Destination",
+            traveler["destination"],
+            "",
+        ]
+    )
+    writer.writerow(
+        [
+            "Traveler Information",
+            "Departure Date",
+            traveler["departure_date"],
+            "",
+        ]
+    )
+    writer.writerow(
+        [
+            "Traveler Information",
+            "Return Date",
+            traveler["return_date"],
+            "",
+        ]
+    )
 
-    calculate_trip_totals(trip)
+    for booking in major_bookings.values():
+        if booking["included"]:
+            writer.writerow(
+                [
+                    "Major Bookings",
+                    booking["display_name"],
+                    booking["description"],
+                    f"{booking['cost']:.2f}",
+                ]
+            )
 
-    report = generate_text_report(trip)
+    for expense in other_expenses.values():
+        if expense["included"]:
+            writer.writerow(
+                [
+                    "Other Expenses",
+                    expense["display_name"],
+                    "",
+                    f"{expense['cost']:.2f}",
+                ]
+            )
 
-    print(report)
+    writer.writerow(
+        [
+            "Per Diem",
+            "Daily Rate",
+            "",
+            f"{per_diem['daily_rate']:.2f}",
+        ]
+    )
+    writer.writerow(
+        [
+            "Per Diem",
+            "Travel Days",
+            "",
+            str(per_diem["travel_days"]),
+        ]
+    )
+    writer.writerow(
+        [
+            "Per Diem",
+            "Full-Rate Days",
+            "",
+            str(per_diem["full_rate_days"]),
+        ]
+    )
+    writer.writerow(
+        [
+            "Per Diem",
+            "Travel-Rate Days",
+            "",
+            str(per_diem["travel_rate_days"]),
+        ]
+    )
+
+    writer.writerow(
+        [
+            "Totals",
+            "Major Bookings Total",
+            "",
+            f"{totals['major_bookings']:.2f}",
+        ]
+    )
+    writer.writerow(
+        [
+            "Totals",
+            "Other Expenses Total",
+            "",
+            f"{totals['other_expenses']:.2f}",
+        ]
+    )
+    writer.writerow(
+        [
+            "Totals",
+            "Per Diem Total",
+            "",
+            f"{totals['per_diem']:.2f}",
+        ]
+    )
+    writer.writerow(
+        [
+            "Totals",
+            "Grand Total",
+            "",
+            f"{totals['grand_total']:.2f}",
+        ]
+    )
+
+    return output.getvalue()
+
+
+def generate_html_report(travel_request):
+    """
+    Generate a complete HTML travel cost report.
+
+    User-provided text is HTML-escaped before it is inserted into
+    the document.
+
+    Args:
+        travel_request: Completed travel-request dictionary.
+
+    Returns:
+        A complete HTML document as a string.
+    """
+
+    traveler = travel_request["traveler"]
+    major_bookings = travel_request["major_bookings"]
+    other_expenses = travel_request["other_expenses"]
+    per_diem = travel_request["per_diem"]
+    totals = travel_request["totals"]
+
+    html_lines = [
+        "<!DOCTYPE html>",
+        '<html lang="en">',
+        "<head>",
+        '    <meta charset="UTF-8">',
+        (
+            '    <meta name="viewport" '
+            'content="width=device-width, initial-scale=1.0">'
+        ),
+        "    <title>Travel Cost Estimate</title>",
+        "    <style>",
+        "        body {",
+        (
+            "            font-family: Arial, Helvetica, "
+            "sans-serif;"
+        ),
+        "            max-width: 900px;",
+        "            margin: 40px auto;",
+        "            padding: 0 24px;",
+        "            color: #222222;",
+        "            line-height: 1.5;",
+        "        }",
+        "        h1 {",
+        "            color: #1f4e78;",
+        "            margin-bottom: 8px;",
+        "        }",
+        "        h2 {",
+        "            margin-top: 32px;",
+        "            color: #1f4e78;",
+        "        }",
+        "        table {",
+        "            width: 100%;",
+        "            border-collapse: collapse;",
+        "            margin-top: 12px;",
+        "        }",
+        "        th, td {",
+        "            border: 1px solid #d9d9d9;",
+        "            padding: 10px 12px;",
+        "            text-align: left;",
+        "        }",
+        "        th {",
+        "            background-color: #1f4e78;",
+        "            color: white;",
+        "        }",
+        "        td.amount {",
+        "            text-align: right;",
+        "            white-space: nowrap;",
+        "        }",
+        "        tr.grand-total {",
+        "            font-weight: bold;",
+        "            background-color: #eaf2f8;",
+        "        }",
+        "    </style>",
+        "</head>",
+        "<body>",
+        "    <h1>Travel Cost Estimate</h1>",
+        "    <h2>Traveler Information</h2>",
+        (
+            "    <p><strong>Traveler:</strong> "
+            f"{escape(str(traveler['name']))}</p>"
+        ),
+        (
+            "    <p><strong>Destination:</strong> "
+            f"{escape(str(traveler['destination']))}</p>"
+        ),
+        (
+            "    <p><strong>Departure Date:</strong> "
+            f"{escape(str(traveler['departure_date']))}</p>"
+        ),
+        (
+            "    <p><strong>Return Date:</strong> "
+            f"{escape(str(traveler['return_date']))}</p>"
+        ),
+        "    <h2>Major Bookings</h2>",
+        "    <table>",
+        "        <thead>",
+        (
+            "            <tr><th>Item</th>"
+            "<th>Description</th><th>Amount</th></tr>"
+        ),
+        "        </thead>",
+        "        <tbody>",
+    ]
+
+    included_bookings = [
+        booking
+        for booking in major_bookings.values()
+        if booking["included"]
+    ]
+
+    if included_bookings:
+        for booking in included_bookings:
+            html_lines.append(
+                "            <tr>"
+                f"<td>{escape(str(booking['display_name']))}</td>"
+                f"<td>{escape(str(booking['description']))}</td>"
+                '<td class="amount">'
+                f"${booking['cost']:.2f}</td>"
+                "</tr>"
+            )
+    else:
+        html_lines.append(
+            '            <tr><td colspan="3">'
+            "No major bookings selected.</td></tr>"
+        )
+
+    html_lines.extend(
+        [
+            "            <tr>",
+            (
+                '                <td colspan="2">'
+                "<strong>Major Bookings Total</strong></td>"
+            ),
+            (
+                '                <td class="amount">'
+                f"<strong>${totals['major_bookings']:.2f}"
+                "</strong></td>"
+            ),
+            "            </tr>",
+            "        </tbody>",
+            "    </table>",
+            "    <h2>Other Expenses</h2>",
+            "    <table>",
+            "        <thead>",
+            (
+                "            <tr><th>Item</th>"
+                "<th>Amount</th></tr>"
+            ),
+            "        </thead>",
+            "        <tbody>",
+        ]
+    )
+
+    included_expenses = [
+        expense
+        for expense in other_expenses.values()
+        if expense["included"]
+    ]
+
+    if included_expenses:
+        for expense in included_expenses:
+            html_lines.append(
+                "            <tr>"
+                f"<td>{escape(str(expense['display_name']))}</td>"
+                '<td class="amount">'
+                f"${expense['cost']:.2f}</td>"
+                "</tr>"
+            )
+    else:
+        html_lines.append(
+            '            <tr><td colspan="2">'
+            "No other expenses selected.</td></tr>"
+        )
+
+    html_lines.extend(
+        [
+            "            <tr>",
+            (
+                "                <td>"
+                "<strong>Other Expenses Total</strong></td>"
+            ),
+            (
+                '                <td class="amount">'
+                f"<strong>${totals['other_expenses']:.2f}"
+                "</strong></td>"
+            ),
+            "            </tr>",
+            "        </tbody>",
+            "    </table>",
+            "    <h2>Per Diem</h2>",
+            "    <table>",
+            "        <tbody>",
+            (
+                "            <tr><td>Daily Rate</td>"
+                '<td class="amount">'
+                f"${per_diem['daily_rate']:.2f}</td></tr>"
+            ),
+            (
+                "            <tr><td>Travel Days</td>"
+                '<td class="amount">'
+                f"{per_diem['travel_days']}</td></tr>"
+            ),
+            (
+                "            <tr><td>Full-Rate Days</td>"
+                '<td class="amount">'
+                f"{per_diem['full_rate_days']}</td></tr>"
+            ),
+            (
+                "            <tr><td>Travel-Rate Days</td>"
+                '<td class="amount">'
+                f"{per_diem['travel_rate_days']}</td></tr>"
+            ),
+            (
+                "            <tr><td>"
+                "<strong>Per Diem Total</strong></td>"
+                '<td class="amount">'
+                f"<strong>${totals['per_diem']:.2f}"
+                "</strong></td></tr>"
+            ),
+            "        </tbody>",
+            "    </table>",
+            "    <h2>Estimated Total</h2>",
+            "    <table>",
+            "        <tbody>",
+            '            <tr class="grand-total">',
+            "                <td>Grand Total</td>",
+            (
+                '                <td class="amount">'
+                f"${totals['grand_total']:.2f}</td>"
+            ),
+            "            </tr>",
+            "        </tbody>",
+            "    </table>",
+            "</body>",
+            "</html>",
+        ]
+    )
+
+    return "\n".join(html_lines)
