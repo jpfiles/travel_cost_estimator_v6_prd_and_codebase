@@ -5,12 +5,19 @@ from travel_model import create_travel_request
 from pathlib import Path
 from storage import load_travel_request, save_travel_request
 
+from reports import (
+    generate_csv_report,
+    generate_html_report,
+    generate_text_report,
+)
+
 from config import (
     DATE_FORMAT_DISPLAY,
     DEFAULT_WINDOW_GEOMETRY,
     MINIMUM_WINDOW_HEIGHT,
     MINIMUM_WINDOW_WIDTH,
     PROJECTS_DIRECTORY,
+    REPORTS_DIRECTORY,
     WINDOW_TITLE,
 )
 
@@ -217,6 +224,23 @@ class TravelCostEstimatorApp:
             action_frame,
             text="Save As",
             command=self.save_project_as,
+        ).pack(
+            side="left",
+        )
+
+        ttk.Separator(
+            action_frame,
+            orient="vertical",
+        ).pack(
+            side="left",
+            fill="y",
+            padx=12,
+        )
+
+        ttk.Button(
+            action_frame,
+            text="Export",
+            command=self.export_report,
         ).pack(
             side="left",
         )
@@ -599,6 +623,123 @@ class TravelCostEstimatorApp:
         )
 
         return projects_directory
+
+    def get_reports_directory(self):
+        """Return the report directory and create it if needed."""
+        reports_directory = (
+            Path.cwd() / REPORTS_DIRECTORY
+        )
+        reports_directory.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        return reports_directory
+
+    def export_report(self):
+        """Calculate and export the current travel estimate."""
+        try:
+            self.sync_form_to_model()
+            calculate_trip_totals(
+                self.travel_request
+            )
+            self.update_estimate_display()
+        except ValueError as error:
+            self.status_message_var.set(
+                "Unable to export report."
+            )
+            messagebox.showerror(
+                "Unable to Export Report",
+                str(error),
+                parent=self.root,
+            )
+            return
+
+        file_path = filedialog.asksaveasfilename(
+            parent=self.root,
+            title="Export Travel Cost Estimate",
+            initialdir=self.get_reports_directory(),
+            initialfile="travel_cost_estimate.txt",
+            defaultextension=".txt",
+            filetypes=(
+                (
+                    "Text Report",
+                    "*.txt",
+                ),
+                (
+                    "CSV Report",
+                    "*.csv",
+                ),
+                (
+                    "HTML Report",
+                    "*.html",
+                ),
+            ),
+        )
+
+        if not file_path:
+            return
+
+        destination = Path(file_path)
+        extension = destination.suffix.lower()
+
+        report_generators = {
+            ".txt": generate_text_report,
+            ".csv": generate_csv_report,
+            ".html": generate_html_report,
+        }
+
+        generator = report_generators.get(
+            extension
+        )
+
+        if generator is None:
+            messagebox.showerror(
+                "Unsupported Report Format",
+                (
+                    "Reports must use a .txt, .csv, "
+                    "or .html extension."
+                ),
+                parent=self.root,
+            )
+            return
+
+        report_content = generator(
+            self.travel_request
+        )
+
+        try:
+            with destination.open(
+                "w",
+                encoding="utf-8",
+                newline="",
+            ) as report_file:
+                report_file.write(
+                    report_content
+                )
+        except OSError as error:
+            self.status_message_var.set(
+                "Unable to export report."
+            )
+            messagebox.showerror(
+                "Unable to Export Report",
+                str(error),
+                parent=self.root,
+            )
+            return
+
+        self.status_message_var.set(
+            f"Report exported: {destination.name}"
+        )
+
+        messagebox.showinfo(
+            "Report Exported",
+            (
+                "The travel cost estimate was "
+                "exported successfully."
+            ),
+            parent=self.root,
+        )
 
     def confirm_discard_changes(self):
         """Confirm whether unsaved changes may be discarded."""
