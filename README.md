@@ -38,6 +38,37 @@ This repository contains the Version 6 codebase for the v0.96 beta application.
 - Unsaved-change warnings
 - System-compatible Tkinter interface
 
+## Exported Reports
+
+The application supports three report formats:
+
+.html for formatted browser reports (Cleanest and neatest. Cannot be edited after production.)
+.txt for plain-text reports (Editable)
+.csv for spreadsheets and data analysis (Editable)
+
+The application opens the reports directory by default when exporting.
+
+## Current Beta Limitations
+
+Per diem rates must be entered manually.
+Trips must last at least two calendar days.
+Dates must use MM/DD/YYYY.
+The application does not retrieve rates from the GSA API.
+The application does not integrate with official travel or approval systems.
+PDF and native Excel exports are not currently supported.
+A Windows installer is not yet included.
+
+## Planned Enhancements
+
+Potential future enhancements include:
+
+GSA per diem API integration
+PDF reports
+Native Excel reports
+Windows executable and installer
+Expanded project-file validation
+Additional accessibility and theme testing
+
 ## Requirements
 
 - Python 3.10 or newer
