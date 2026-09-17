@@ -1,15 +1,18 @@
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 from calculations import calculate_trip_totals
+from travel_model import create_travel_request
+from pathlib import Path
+from storage import load_travel_request, save_travel_request
 
 from config import (
     DATE_FORMAT_DISPLAY,
     DEFAULT_WINDOW_GEOMETRY,
     MINIMUM_WINDOW_HEIGHT,
     MINIMUM_WINDOW_WIDTH,
+    PROJECTS_DIRECTORY,
     WINDOW_TITLE,
 )
-from travel_model import create_travel_request
 
 
 class TravelCostEstimatorApp:
@@ -88,6 +91,7 @@ class TravelCostEstimatorApp:
         )
 
         self.create_header()
+        self.create_action_bar()
         self.create_status_bar()
         self.create_main_content()
 
@@ -173,6 +177,49 @@ class TravelCostEstimatorApp:
             orient="horizontal",
         )
         separator.pack(fill="x")
+
+    def create_action_bar(self):
+        """Create project-file action controls."""
+        action_frame = ttk.Frame(
+            self.root,
+            padding=(20, 8),
+        )
+        action_frame.pack(fill="x")
+
+        ttk.Button(
+            action_frame,
+            text="New",
+            command=self.new_project,
+        ).pack(
+            side="left",
+            padx=(0, 8),
+        )
+
+        ttk.Button(
+            action_frame,
+            text="Open",
+            command=self.open_project,
+        ).pack(
+            side="left",
+            padx=(0, 8),
+        )
+
+        ttk.Button(
+            action_frame,
+            text="Save",
+            command=self.save_project,
+        ).pack(
+            side="left",
+            padx=(0, 8),
+        )
+
+        ttk.Button(
+            action_frame,
+            text="Save As",
+            command=self.save_project_as,
+        ).pack(
+            side="left",
+        )
 
     def create_main_content(self):
         """Create the expandable application workspace."""
@@ -540,6 +587,273 @@ class TravelCostEstimatorApp:
             sticky="e",
             pady=(20, 0),
         )
+
+    def get_projects_directory(self):
+        """Return the project directory and create it if needed."""
+        projects_directory = (
+            Path.cwd() / PROJECTS_DIRECTORY
+        )
+        projects_directory.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        return projects_directory
+
+    def confirm_discard_changes(self):
+        """Confirm whether unsaved changes may be discarded."""
+        if not self.is_modified:
+            return True
+
+        return messagebox.askyesno(
+            "Unsaved Changes",
+            (
+                "This project contains unsaved changes.\n\n"
+                "Discard the changes and continue?"
+            ),
+            parent=self.root,
+        )
+
+    def populate_form_from_model(self):
+        """Copy the current travel model into the UI."""
+        traveler = self.travel_request["traveler"]
+
+        self.traveler_name_var.set(
+            traveler["name"]
+        )
+        self.destination_var.set(
+            traveler["destination"]
+        )
+        self.departure_date_var.set(
+            traveler["departure_date"]
+        )
+        self.return_date_var.set(
+            traveler["return_date"]
+        )
+
+        for booking_key, variables in (
+            self.major_booking_vars.items()
+        ):
+            booking = self.travel_request[
+                "major_bookings"
+            ][booking_key]
+
+            variables["included"].set(
+                booking["included"]
+            )
+            variables["description"].set(
+                booking["description"]
+            )
+            variables["cost"].set(
+                f"{booking['cost']:.2f}"
+            )
+
+        for expense_key, variables in (
+            self.other_expense_vars.items()
+        ):
+            expense = self.travel_request[
+                "other_expenses"
+            ][expense_key]
+
+            variables["included"].set(
+                expense["included"]
+            )
+            variables["cost"].set(
+                f"{expense['cost']:.2f}"
+            )
+
+        per_diem = self.travel_request["per_diem"]
+
+        self.daily_rate_var.set(
+            f"{per_diem['daily_rate']:.2f}"
+        )
+
+        self.update_estimate_display()
+
+        if per_diem["travel_days"] == 0:
+            self.travel_rate_days_var.set("0")\
+
+    def new_project(self):
+        """Create a new blank travel project."""
+        if not self.confirm_discard_changes():
+            return
+
+        self.travel_request = create_travel_request()
+        self.current_file_path = None
+        self.is_modified = False
+
+        self.populate_form_from_model()
+
+        self.project_status_var.set(
+            "Project: Unsaved"
+        )
+        self.status_message_var.set(
+            "New project created."
+        )
+
+        self.name_entry.focus_set()
+
+    def open_project(self):
+        """Open an existing JSON travel project."""
+        if not self.confirm_discard_changes():
+            return
+
+        file_path = filedialog.askopenfilename(
+            parent=self.root,
+            title="Open Travel Project",
+            initialdir=self.get_projects_directory(),
+            filetypes=(
+                (
+                    "Travel Project",
+                    "*.json",
+                ),
+                (
+                    "JSON Files",
+                    "*.json",
+                ),
+            ),
+        )
+
+        if not file_path:
+            return
+
+        loaded_request = load_travel_request(
+            file_path
+        )
+
+        if loaded_request is None:
+            messagebox.showerror(
+                "Unable to Open Project",
+                "The selected project could not be opened.",
+                parent=self.root,
+            )
+            return
+
+        previous_request = self.travel_request
+        self.travel_request = loaded_request
+
+        try:
+            self.populate_form_from_model()
+        except (KeyError, TypeError, ValueError):
+            self.travel_request = previous_request
+            self.populate_form_from_model()
+
+            messagebox.showerror(
+                "Invalid Project",
+                (
+                    "The selected file is not a valid "
+                    "Travel Cost Estimator project."
+                ),
+                parent=self.root,
+            )
+            return
+
+        self.current_file_path = Path(
+            file_path
+        )
+        self.is_modified = False
+
+        self.project_status_var.set(
+            f"Project: {self.current_file_path.name}"
+        )
+        self.status_message_var.set(
+            "Project opened successfully."
+        )
+
+    def save_project(self):
+        """Save the current project."""
+        if self.current_file_path is None:
+            return self.save_project_as()
+
+        return self.save_project_to_path(
+            self.current_file_path
+        )
+
+    def save_project_as(self):
+        """Prompt for a new JSON project filename."""
+        file_path = filedialog.asksaveasfilename(
+            parent=self.root,
+            title="Save Travel Project",
+            initialdir=self.get_projects_directory(),
+            defaultextension=".json",
+            filetypes=(
+                (
+                    "Travel Project",
+                    "*.json",
+                ),
+                (
+                    "JSON Files",
+                    "*.json",
+                ),
+            ),
+        )
+
+        if not file_path:
+            return False
+
+        return self.save_project_to_path(
+            Path(file_path)
+        )
+
+    def save_project_to_path(self, file_path):
+        """Synchronize and save the project to a path."""
+        try:
+            self.sync_form_to_model()
+
+            departure_date = self.travel_request[
+                "traveler"
+            ]["departure_date"]
+
+            return_date = self.travel_request[
+                "traveler"
+            ]["return_date"]
+
+            if departure_date or return_date:
+                calculate_trip_totals(
+                    self.travel_request
+                )
+                self.update_estimate_display()
+
+        except ValueError as error:
+            self.status_message_var.set(
+                "Unable to save project."
+            )
+            messagebox.showerror(
+                "Unable to Save Project",
+                str(error),
+                parent=self.root,
+            )
+            return False
+
+        save_succeeded = save_travel_request(
+            self.travel_request,
+            file_path,
+        )
+
+        if not save_succeeded:
+            self.status_message_var.set(
+                "Unable to save project."
+            )
+            messagebox.showerror(
+                "Unable to Save Project",
+                "The project could not be saved.",
+                parent=self.root,
+            )
+            return False
+
+        self.current_file_path = Path(
+            file_path
+        )
+        self.is_modified = False
+
+        self.project_status_var.set(
+            f"Project: {self.current_file_path.name}"
+        )
+        self.status_message_var.set(
+            "Project saved successfully."
+        )
+
+        return True
 
     def parse_amount(self, value, field_name):
         """Convert a currency entry into a non-negative float."""
