@@ -35,6 +35,11 @@ class TravelCostEstimatorApp:
             MINIMUM_WINDOW_HEIGHT,
         )
 
+        self.root.protocol(
+            "WM_DELETE_WINDOW",
+            self.close_application,
+        )
+
         self.travel_request = create_travel_request()
 
         self.current_file_path = None
@@ -110,6 +115,13 @@ class TravelCostEstimatorApp:
         self.configure_styles()
 
         self.travel_request = create_travel_request()
+
+    def close_application(self):
+        """Close the application after handling unsaved changes."""
+        if not self.confirm_discard_changes():
+            return
+
+        self.root.destroy()
 
     def configure_styles(self):
         """Configure theme-compatible application styles."""
@@ -742,18 +754,33 @@ class TravelCostEstimatorApp:
         )
 
     def confirm_discard_changes(self):
-        """Confirm whether unsaved changes may be discarded."""
+        """
+        Ask whether unsaved changes should be saved.
+
+        Returns:
+            True if the requested action may continue.
+            False if the user cancels or saving fails.
+        """
         if not self.is_modified:
             return True
 
-        return messagebox.askyesno(
+        response = messagebox.askyesnocancel(
             "Unsaved Changes",
             (
                 "This project contains unsaved changes.\n\n"
-                "Discard the changes and continue?"
+                "Would you like to save them before "
+                "continuing?"
             ),
             parent=self.root,
         )
+
+        if response is None:
+            return False
+
+        if response:
+            return self.save_project()
+
+        return True
 
     def populate_form_from_model(self):
         """Copy the current travel model into the UI."""
