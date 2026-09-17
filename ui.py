@@ -1,5 +1,6 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
+from calculations import calculate_trip_totals
 
 from config import (
     DATE_FORMAT_DISPLAY,
@@ -16,6 +17,7 @@ class TravelCostEstimatorApp:
     def __init__(self, root):
         self.root = root
         self.major_booking_vars = {}
+        self.other_expense_vars = {}
         self.root.title(WINDOW_TITLE)
         self.root.geometry(DEFAULT_WINDOW_GEOMETRY)
         self.root.minsize(
@@ -27,6 +29,40 @@ class TravelCostEstimatorApp:
 
         self.current_file_path = None
         self.is_modified = False
+
+        self.daily_rate_var = tk.StringVar(
+            master=self.root,
+            value="0.00",
+        )
+        self.travel_days_var = tk.StringVar(
+            master=self.root,
+            value="0",
+        )
+        self.full_rate_days_var = tk.StringVar(
+            master=self.root,
+            value="0",
+        )
+        self.travel_rate_days_var = tk.StringVar(
+            master=self.root,
+            value="0",
+        )
+
+        self.booking_total_var = tk.StringVar(
+            master=self.root,
+            value="$0.00",
+        )
+        self.other_total_var = tk.StringVar(
+            master=self.root,
+            value="$0.00",
+        )
+        self.per_diem_total_var = tk.StringVar(
+            master=self.root,
+            value="$0.00",
+        )
+        self.grand_total_var = tk.StringVar(
+            master=self.root,
+            value="$0.00",
+        )
 
         self.project_status_var = tk.StringVar(
             master=self.root,
@@ -54,6 +90,32 @@ class TravelCostEstimatorApp:
         self.create_header()
         self.create_status_bar()
         self.create_main_content()
+
+        self.root.minsize(
+            MINIMUM_WINDOW_WIDTH,
+            MINIMUM_WINDOW_HEIGHT,
+        )
+
+        self.configure_styles()
+
+        self.travel_request = create_travel_request()
+
+    def configure_styles(self):
+        """Configure theme-compatible application styles."""
+        self.style = ttk.Style(
+            self.root,
+        )
+
+        self.style.configure(
+            "Travel.TNotebook",
+            tabmargins=(0, 4, 0, 0),
+        )
+
+        self.style.configure(
+            "Travel.TNotebook.Tab",
+            font=("Segoe UI", 10, "bold"),
+            padding=(16, 8),
+        )
 
     def create_header(self):
         """Create the application title and project status."""
@@ -265,6 +327,7 @@ class TravelCostEstimatorApp:
         """Create the tabbed travel-cost input workspace."""
         self.input_notebook = ttk.Notebook(
             self.main_frame,
+            style="Travel.TNotebook",
         )
         self.input_notebook.pack(
             fill="both",
@@ -299,6 +362,320 @@ class TravelCostEstimatorApp:
         )
 
         self.create_major_bookings_tab()
+        self.create_other_expenses_tab()
+        self.create_per_diem_tab()
+
+    def create_per_diem_tab(self):
+        """Create per diem inputs and the estimate summary."""
+        self.per_diem_tab.columnconfigure(
+            0,
+            weight=1,
+        )
+        self.per_diem_tab.columnconfigure(
+            1,
+            weight=1,
+        )
+
+        input_frame = ttk.LabelFrame(
+            self.per_diem_tab,
+            text="Per Diem",
+            padding=15,
+        )
+        input_frame.grid(
+            row=0,
+            column=0,
+            sticky="nsew",
+            padx=(0, 10),
+        )
+        input_frame.columnconfigure(
+            1,
+            weight=1,
+        )
+
+        ttk.Label(
+            input_frame,
+            text="Daily Rate",
+        ).grid(
+            row=0,
+            column=0,
+            sticky="w",
+            padx=(0, 10),
+            pady=6,
+        )
+
+        daily_rate_entry = ttk.Entry(
+            input_frame,
+            textvariable=self.daily_rate_var,
+            justify="right",
+        )
+        daily_rate_entry.grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            pady=6,
+        )
+        daily_rate_entry.bind(
+            "<KeyRelease>",
+            self.mark_modified,
+        )
+
+        per_diem_rows = (
+            ("Travel Days", self.travel_days_var),
+            ("Full-Rate Days", self.full_rate_days_var),
+            (
+                "Travel-Rate Days",
+                self.travel_rate_days_var,
+            ),
+        )
+
+        for row_number, (
+            label_text,
+            value_variable,
+        ) in enumerate(
+            per_diem_rows,
+            start=1,
+        ):
+            ttk.Label(
+                input_frame,
+                text=label_text,
+            ).grid(
+                row=row_number,
+                column=0,
+                sticky="w",
+                padx=(0, 10),
+                pady=6,
+            )
+
+            ttk.Label(
+                input_frame,
+                textvariable=value_variable,
+                font=("Segoe UI", 10, "bold"),
+            ).grid(
+                row=row_number,
+                column=1,
+                sticky="e",
+                pady=6,
+            )
+
+        summary_frame = ttk.LabelFrame(
+            self.per_diem_tab,
+            text="Estimate Summary",
+            padding=15,
+        )
+        summary_frame.grid(
+            row=0,
+            column=1,
+            sticky="nsew",
+            padx=(10, 0),
+        )
+        summary_frame.columnconfigure(
+            1,
+            weight=1,
+        )
+
+        summary_rows = (
+            (
+                "Major Bookings",
+                self.booking_total_var,
+            ),
+            (
+                "Other Expenses",
+                self.other_total_var,
+            ),
+            (
+                "Per Diem",
+                self.per_diem_total_var,
+            ),
+            (
+                "Estimated Total",
+                self.grand_total_var,
+            ),
+        )
+
+        for row_number, (
+            label_text,
+            value_variable,
+        ) in enumerate(summary_rows):
+            is_grand_total = (
+                label_text == "Estimated Total"
+            )
+
+            label_font = (
+                ("Segoe UI", 11, "bold")
+                if is_grand_total
+                else ("Segoe UI", 10)
+            )
+
+            ttk.Label(
+                summary_frame,
+                text=label_text,
+                font=label_font,
+            ).grid(
+                row=row_number,
+                column=0,
+                sticky="w",
+                padx=(0, 20),
+                pady=8,
+            )
+
+            ttk.Label(
+                summary_frame,
+                textvariable=value_variable,
+                font=label_font,
+            ).grid(
+                row=row_number,
+                column=1,
+                sticky="e",
+                pady=8,
+            )
+
+        calculate_button = ttk.Button(
+            self.per_diem_tab,
+            text="Calculate Estimate",
+            command=self.calculate_estimate,
+        )
+        calculate_button.grid(
+            row=1,
+            column=1,
+            sticky="e",
+            pady=(20, 0),
+        )
+
+    def parse_amount(self, value, field_name):
+        """Convert a currency entry into a non-negative float."""
+        cleaned_value = (
+            value.strip()
+            .replace("$", "")
+            .replace(",", "")
+        )
+
+        if cleaned_value == "":
+            raise ValueError(
+                f"{field_name} is required."
+            )
+
+        try:
+            amount = float(cleaned_value)
+        except ValueError:
+            raise ValueError(
+                f"{field_name} must be a valid number."
+            ) from None
+
+        if amount < 0:
+            raise ValueError(
+                f"{field_name} cannot be negative."
+            )
+
+        return amount
+
+    def sync_form_to_model(self):
+        """Copy all current form values into the travel model."""
+        traveler = self.travel_request["traveler"]
+
+        traveler["name"] = (
+            self.traveler_name_var.get().strip()
+        )
+        traveler["destination"] = (
+            self.destination_var.get().strip()
+        )
+        traveler["departure_date"] = (
+            self.departure_date_var.get().strip()
+        )
+        traveler["return_date"] = (
+            self.return_date_var.get().strip()
+        )
+
+        for booking_key, variables in (
+            self.major_booking_vars.items()
+        ):
+            booking = self.travel_request[
+                "major_bookings"
+            ][booking_key]
+
+            booking["included"] = (
+                variables["included"].get()
+            )
+            booking["description"] = (
+                variables["description"].get().strip()
+            )
+            booking["cost"] = self.parse_amount(
+                variables["cost"].get(),
+                booking["display_name"],
+            )
+
+        for expense_key, variables in (
+            self.other_expense_vars.items()
+        ):
+            expense = self.travel_request[
+                "other_expenses"
+            ][expense_key]
+
+            expense["included"] = (
+                variables["included"].get()
+            )
+            expense["cost"] = self.parse_amount(
+                variables["cost"].get(),
+                expense["display_name"],
+            )
+
+        self.travel_request["per_diem"][
+            "daily_rate"
+        ] = self.parse_amount(
+            self.daily_rate_var.get(),
+            "Daily per diem rate",
+        )
+
+    def update_estimate_display(self):
+        """Display calculated values from the travel model."""
+        per_diem = self.travel_request["per_diem"]
+        totals = self.travel_request["totals"]
+
+        self.travel_days_var.set(
+            str(per_diem["travel_days"])
+        )
+        self.full_rate_days_var.set(
+            str(per_diem["full_rate_days"])
+        )
+        self.travel_rate_days_var.set(
+            str(per_diem["travel_rate_days"])
+        )
+
+        self.booking_total_var.set(
+            f"${totals['major_bookings']:.2f}"
+        )
+        self.other_total_var.set(
+            f"${totals['other_expenses']:.2f}"
+        )
+        self.per_diem_total_var.set(
+            f"${totals['per_diem']:.2f}"
+        )
+        self.grand_total_var.set(
+            f"${totals['grand_total']:.2f}"
+        )
+
+    def calculate_estimate(self):
+        """Validate the form and calculate the trip estimate."""
+        try:
+            self.sync_form_to_model()
+            calculate_trip_totals(
+                self.travel_request
+            )
+        except ValueError as error:
+            self.status_message_var.set(
+                "Unable to calculate estimate."
+            )
+            messagebox.showerror(
+                "Unable to Calculate",
+                str(error),
+                parent=self.root,
+            )
+            return
+
+        self.update_estimate_display()
+        self.mark_modified()
+        self.status_message_var.set(
+            "Estimate calculated successfully."
+        )
 
     def create_major_bookings_tab(self):
         """Create the major-booking input table."""
@@ -417,7 +794,120 @@ class TravelCostEstimatorApp:
             cost_entry.bind(
                 "<KeyRelease>",
                 self.mark_modified,
-            )        
+            )      
+
+    def create_other_expenses_tab(self):
+        """Create the additional travel-expense inputs."""
+        self.other_expenses_tab.columnconfigure(
+            0,
+            weight=1,
+        )
+        self.other_expenses_tab.columnconfigure(
+            2,
+            weight=1,
+        )
+
+        for column in (0, 2):
+            ttk.Label(
+                self.other_expenses_tab,
+                text="Expense",
+                font=("Segoe UI", 10, "bold"),
+            ).grid(
+                row=0,
+                column=column,
+                sticky="w",
+                padx=(0, 10),
+                pady=(0, 10),
+            )
+
+            ttk.Label(
+                self.other_expenses_tab,
+                text="Cost",
+                font=("Segoe UI", 10, "bold"),
+            ).grid(
+                row=0,
+                column=column + 1,
+                sticky="e",
+                padx=(0, 25) if column == 0 else (0, 0),
+                pady=(0, 10),
+            )
+
+        expenses = list(
+            self.travel_request[
+                "other_expenses"
+            ].items()
+        )
+
+        left_column_count = (
+            len(expenses) + 1
+        ) // 2
+
+        for index, (
+            expense_key,
+            expense,
+        ) in enumerate(expenses):
+            if index < left_column_count:
+                grid_row = index + 1
+                label_column = 0
+                cost_column = 1
+            else:
+                grid_row = (
+                    index - left_column_count + 1
+                )
+                label_column = 2
+                cost_column = 3
+
+            included_var = tk.BooleanVar(
+                master=self.root,
+                value=expense["included"],
+            )
+            cost_var = tk.StringVar(
+                master=self.root,
+                value=f"{expense['cost']:.2f}",
+            )
+
+            self.other_expense_vars[
+                expense_key
+            ] = {
+                "included": included_var,
+                "cost": cost_var,
+            }
+
+            include_checkbox = ttk.Checkbutton(
+                self.other_expenses_tab,
+                text=expense["display_name"],
+                variable=included_var,
+                command=self.mark_modified,
+            )
+            include_checkbox.grid(
+                row=grid_row,
+                column=label_column,
+                sticky="w",
+                padx=(0, 10),
+                pady=6,
+            )
+
+            cost_entry = ttk.Entry(
+                self.other_expenses_tab,
+                textvariable=cost_var,
+                width=16,
+                justify="right",
+            )
+            cost_entry.grid(
+                row=grid_row,
+                column=cost_column,
+                sticky="e",
+                padx=(
+                    (0, 25)
+                    if cost_column == 1
+                    else (0, 0)
+                ),
+                pady=6,
+            )
+            cost_entry.bind(
+                "<KeyRelease>",
+                self.mark_modified,
+            )  
 
     def mark_modified(self, event=None):
         """Mark the current project as having unsaved changes."""
