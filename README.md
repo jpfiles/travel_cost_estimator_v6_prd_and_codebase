@@ -1,4 +1,4 @@
-# Travel Cost Estimator v0.96 Beta
+# Travel Cost Calculator v0.97 Beta
 
 Travel Cost Estimator is a Python desktop application for estimating official travel costs, calculating per diem, saving travel projects, and exporting cost reports.
 

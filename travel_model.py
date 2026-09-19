@@ -2,7 +2,7 @@ def create_travel_request():
     return {
 
         "metadata": {
-            "version": "0.97 Beta",
+            "version": "6.0",
             "created": "",
             "last_modified": ""
         },
