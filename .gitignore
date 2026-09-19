@@ -4,6 +4,9 @@ __pycache__/
 
 # Virtual environments
 .venv/
+build/
+dist/
+*.spec
 venv/
 env/
 

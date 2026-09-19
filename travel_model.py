@@ -108,10 +108,14 @@ def create_travel_request():
         },
 
         "per_diem": {
+            "meals_rate": 0.00,
+            "incidentals_rate": 0.00,
             "daily_rate": 0.00,
             "travel_days": 0,
             "full_rate_days": 0,
-            "travel_rate_days": 2,
+            "travel_rate_days": 0,
+            "meals_total": 0.00,
+            "incidentals_total": 0.00,
             "total": 0.00
         },
 

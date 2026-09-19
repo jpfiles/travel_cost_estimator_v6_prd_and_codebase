@@ -152,22 +152,25 @@ def parse_travel_date(date_string):
 
 def calculate_per_diem(travel_request):
     """
-    Calculate the trip length and total per diem.
+    Calculate trip length and per diem component totals.
 
-    The first and last travel days receive 75 percent of the daily
-    rate. Every day between them receives 100 percent of the rate.
+    Meals and incidentals are calculated separately. The first
+    and last travel days receive 75 percent of each component's
+    daily rate. Every intervening day receives the full rate.
 
-    The calculated values are stored in the travel request dictionary.
+    Older projects containing only a combined daily_rate remain
+    supported by treating that amount as meals with zero
+    incidentals.
 
     Args:
         travel_request: Travel-request dictionary containing dates
-            and the daily per diem rate.
+            and per diem rates.
 
     Returns:
-        The rounded total per diem.
+        The rounded combined per diem total.
 
     Raises:
-        ValueError: If dates or the daily rate are invalid.
+        ValueError: If dates or rates are invalid.
     """
 
     departure_date_string = travel_request[
@@ -204,39 +207,101 @@ def calculate_per_diem(travel_request):
             "Travel must last at least two days."
         )
 
-    daily_rate = validate_non_negative_number(
-        travel_request["per_diem"]["daily_rate"],
-        "Per diem rate",
+    per_diem = travel_request["per_diem"]
+
+    meals_rate_value = per_diem.get(
+        "meals_rate",
+        0.00,
+    )
+    incidentals_rate_value = per_diem.get(
+        "incidentals_rate",
+        0.00,
+    )
+    legacy_daily_rate = per_diem.get(
+        "daily_rate",
+        0.00,
     )
 
-    travel_rate_days = 2
-    full_rate_days = travel_days - travel_rate_days
-
-    full_rate_total = full_rate_days * daily_rate
-
-    travel_rate_total = (
-        travel_rate_days
-        * daily_rate
-        * 0.75
+    uses_legacy_combined_rate = (
+        meals_rate_value == 0
+        and incidentals_rate_value == 0
+        and legacy_daily_rate != 0
     )
 
-    per_diem_total = round(
-        full_rate_total + travel_rate_total,
+    if uses_legacy_combined_rate:
+        meals_rate = validate_non_negative_number(
+            legacy_daily_rate,
+            "Per diem rate",
+        )
+        incidentals_rate = 0.00
+    else:
+        meals_rate = validate_non_negative_number(
+            meals_rate_value,
+            "Meals rate",
+        )
+        incidentals_rate = validate_non_negative_number(
+            incidentals_rate_value,
+            "Incidentals rate",
+        )
+
+    daily_rate = round(
+        meals_rate + incidentals_rate,
         2,
     )
 
-    travel_request["per_diem"]["travel_days"] = (
-        travel_days
+    travel_rate_days = 2
+    full_rate_days = (
+        travel_days - travel_rate_days
     )
-    travel_request["per_diem"]["full_rate_days"] = (
-        full_rate_days
+
+    meals_full_rate_total = (
+        full_rate_days * meals_rate
     )
-    travel_request["per_diem"]["travel_rate_days"] = (
+    meals_travel_rate_total = (
+        travel_rate_days
+        * meals_rate
+        * 0.75
+    )
+    meals_total = round(
+        meals_full_rate_total
+        + meals_travel_rate_total,
+        2,
+    )
+
+    incidentals_full_rate_total = (
+        full_rate_days * incidentals_rate
+    )
+    incidentals_travel_rate_total = (
+        travel_rate_days
+        * incidentals_rate
+        * 0.75
+    )
+    incidentals_total = round(
+        incidentals_full_rate_total
+        + incidentals_travel_rate_total,
+        2,
+    )
+
+    per_diem_total = round(
+        meals_total + incidentals_total,
+        2,
+    )
+
+    per_diem["meals_rate"] = meals_rate
+    per_diem["incidentals_rate"] = (
+        incidentals_rate
+    )
+    per_diem["daily_rate"] = daily_rate
+    per_diem["travel_days"] = travel_days
+    per_diem["full_rate_days"] = full_rate_days
+    per_diem["travel_rate_days"] = (
         travel_rate_days
     )
-    travel_request["per_diem"]["total"] = (
-        per_diem_total
+    per_diem["meals_total"] = meals_total
+    per_diem["incidentals_total"] = (
+        incidentals_total
     )
+    per_diem["total"] = per_diem_total
 
     return per_diem_total
 

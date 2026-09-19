@@ -1,3 +1,4 @@
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from calculations import calculate_trip_totals
@@ -40,14 +41,34 @@ class TravelCostEstimatorApp:
             self.close_application,
         )
 
+        self.configure_styles()
+
         self.travel_request = create_travel_request()
 
         self.current_file_path = None
         self.is_modified = False
 
-        self.daily_rate_var = tk.StringVar(
+        self.meals_rate_var = tk.StringVar(
             master=self.root,
             value="0.00",
+        )
+        self.incidentals_rate_var = tk.StringVar(
+            master=self.root,
+            value="0.00",
+        )
+
+        self.meals_total_var = tk.StringVar(
+            master=self.root,
+            value="$0.00",
+        )
+        self.incidentals_total_var = tk.StringVar(
+            master=self.root,
+            value="$0.00",
+        )
+
+        self.combined_daily_rate_var = tk.StringVar(
+            master=self.root,
+            value="$0.00",
         )
         self.travel_days_var = tk.StringVar(
             master=self.root,
@@ -106,15 +127,14 @@ class TravelCostEstimatorApp:
         self.create_action_bar()
         self.create_status_bar()
         self.create_main_content()
+        self.populate_form_from_model()
 
-        self.root.minsize(
-            MINIMUM_WINDOW_WIDTH,
-            MINIMUM_WINDOW_HEIGHT,
-        )
+    def get_application_directory(self):
+        """Return the source or packaged application directory."""
+        if getattr(sys, "frozen", False):
+            return Path(sys.executable).resolve().parent
 
-        self.configure_styles()
-
-        self.travel_request = create_travel_request()
+        return Path.cwd()
 
     def close_application(self):
         """Close the application after handling unsaved changes."""
@@ -477,7 +497,7 @@ class TravelCostEstimatorApp:
 
         ttk.Label(
             input_frame,
-            text="Daily Rate",
+            text="Meals Rate",
         ).grid(
             row=0,
             column=0,
@@ -486,25 +506,92 @@ class TravelCostEstimatorApp:
             pady=6,
         )
 
-        daily_rate_entry = ttk.Entry(
+        meals_rate_entry = ttk.Entry(
             input_frame,
-            textvariable=self.daily_rate_var,
+            textvariable=self.meals_rate_var,
             justify="right",
         )
-        daily_rate_entry.grid(
+        meals_rate_entry.grid(
             row=0,
             column=1,
             sticky="ew",
             pady=6,
         )
-        daily_rate_entry.bind(
+        meals_rate_entry.bind(
             "<KeyRelease>",
             self.mark_modified,
         )
 
+        ttk.Label(
+            input_frame,
+            text="Incidentals Rate",
+        ).grid(
+            row=1,
+            column=0,
+            sticky="w",
+            padx=(0, 10),
+            pady=6,
+        )
+
+        incidentals_rate_entry = ttk.Entry(
+            input_frame,
+            textvariable=self.incidentals_rate_var,
+            justify="right",
+        )
+        incidentals_rate_entry.grid(
+            row=1,
+            column=1,
+            sticky="ew",
+            pady=6,
+        )
+        incidentals_rate_entry.bind(
+            "<KeyRelease>",
+            self.mark_modified,
+        )
+
+        ttk.Label(
+            input_frame,
+            text="Combined M&IE Rate",
+            font=("Segoe UI", 10, "bold"),
+        ).grid(
+            row=2,
+            column=0,
+            sticky="w",
+            padx=(0, 10),
+            pady=(10, 6),
+        )
+
+        ttk.Label(
+            input_frame,
+            textvariable=self.combined_daily_rate_var,
+            font=("Segoe UI", 10, "bold"),
+        ).grid(
+            row=2,
+            column=1,
+            sticky="e",
+            pady=(10, 6),
+        )
+
+        ttk.Separator(
+            input_frame,
+            orient="horizontal",
+        ).grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            sticky="ew",
+            pady=8,
+        )
+
         per_diem_rows = (
-            ("Travel Days", self.travel_days_var),
-            ("Full-Rate Days", self.full_rate_days_var),
+            (
+                "Travel Days",
+                self.travel_days_var,
+            ),
+            (
+                "Full-Rate Days",
+                self.full_rate_days_var,
+            ),
             (
                 "Travel-Rate Days",
                 self.travel_rate_days_var,
@@ -516,7 +603,7 @@ class TravelCostEstimatorApp:
             value_variable,
         ) in enumerate(
             per_diem_rows,
-            start=1,
+            start=4,
         ):
             ttk.Label(
                 input_frame,
@@ -566,7 +653,15 @@ class TravelCostEstimatorApp:
                 self.other_total_var,
             ),
             (
-                "Per Diem",
+                "Meals Subtotal",
+                self.meals_total_var,
+            ),
+            (
+                "Incidentals Subtotal",
+                self.incidentals_total_var,
+            ),
+            (
+                "Per Diem Total",
                 self.per_diem_total_var,
             ),
             (
@@ -627,7 +722,8 @@ class TravelCostEstimatorApp:
     def get_projects_directory(self):
         """Return the project directory and create it if needed."""
         projects_directory = (
-            Path.cwd() / PROJECTS_DIRECTORY
+            self.get_application_directory()
+            / PROJECTS_DIRECTORY
         )
         projects_directory.mkdir(
             parents=True,
@@ -639,7 +735,8 @@ class TravelCostEstimatorApp:
     def get_reports_directory(self):
         """Return the report directory and create it if needed."""
         reports_directory = (
-            Path.cwd() / REPORTS_DIRECTORY
+            self.get_application_directory()
+            / REPORTS_DIRECTORY
         )
         reports_directory.mkdir(
             parents=True,
@@ -832,14 +929,75 @@ class TravelCostEstimatorApp:
 
         per_diem = self.travel_request["per_diem"]
 
-        self.daily_rate_var.set(
-            f"{per_diem['daily_rate']:.2f}"
+        per_diem = self.travel_request["per_diem"]
+
+        meals_rate = per_diem.get("meals_rate")
+        incidentals_rate = per_diem.get(
+            "incidentals_rate"
+        )
+        legacy_rate = per_diem.get(
+            "daily_rate",
+            0.00,
+        )
+
+        uses_legacy_rate = (
+            meals_rate is None
+            and incidentals_rate is None
+        )
+
+        if not uses_legacy_rate:
+            meals_rate = (
+                0.00
+                if meals_rate is None
+                else meals_rate
+            )
+            incidentals_rate = (
+                0.00
+                if incidentals_rate is None
+                else incidentals_rate
+            )
+
+            uses_legacy_rate = (
+                meals_rate == 0
+                and incidentals_rate == 0
+                and legacy_rate != 0
+            )
+
+        if uses_legacy_rate:
+            meals_rate = legacy_rate
+            incidentals_rate = 0.00
+
+            per_diem["meals_total"] = (
+                per_diem.get("total", 0.00)
+            )
+            per_diem["incidentals_total"] = 0.00
+        else:
+            per_diem.setdefault(
+                "meals_total",
+                0.00,
+            )
+            per_diem.setdefault(
+                "incidentals_total",
+                0.00,
+            )
+
+        per_diem["meals_rate"] = meals_rate
+        per_diem["incidentals_rate"] = (
+            incidentals_rate
+        )
+        per_diem["daily_rate"] = round(
+            meals_rate + incidentals_rate,
+            2,
+        )
+
+        self.meals_rate_var.set(
+            f"{meals_rate:.2f}"
+        )
+        self.incidentals_rate_var.set(
+            f"{incidentals_rate:.2f}"
         )
 
         self.update_estimate_display()
-
-        if per_diem["travel_days"] == 0:
-            self.travel_rate_days_var.set("0")\
 
     def new_project(self):
         """Create a new blank travel project."""
@@ -1100,11 +1258,24 @@ class TravelCostEstimatorApp:
                 expense["display_name"],
             )
 
-        self.travel_request["per_diem"][
-            "daily_rate"
-        ] = self.parse_amount(
-            self.daily_rate_var.get(),
-            "Daily per diem rate",
+        meals_rate = self.parse_amount(
+            self.meals_rate_var.get(),
+            "Meals rate",
+        )
+        incidentals_rate = self.parse_amount(
+            self.incidentals_rate_var.get(),
+            "Incidentals rate",
+        )
+
+        per_diem = self.travel_request["per_diem"]
+
+        per_diem["meals_rate"] = meals_rate
+        per_diem["incidentals_rate"] = (
+            incidentals_rate
+        )
+        per_diem["daily_rate"] = round(
+            meals_rate + incidentals_rate,
+            2,
         )
 
     def update_estimate_display(self):
@@ -1112,14 +1283,41 @@ class TravelCostEstimatorApp:
         per_diem = self.travel_request["per_diem"]
         totals = self.travel_request["totals"]
 
+        meals_rate = per_diem.get(
+            "meals_rate",
+            0.00,
+        )
+        incidentals_rate = per_diem.get(
+            "incidentals_rate",
+            0.00,
+        )
+        combined_rate = per_diem.get(
+            "daily_rate",
+            round(
+                meals_rate + incidentals_rate,
+                2,
+            ),
+        )
+
+        self.combined_daily_rate_var.set(
+            f"${combined_rate:.2f}"
+        )
+
         self.travel_days_var.set(
-            str(per_diem["travel_days"])
+            str(per_diem.get("travel_days", 0))
         )
         self.full_rate_days_var.set(
-            str(per_diem["full_rate_days"])
+            str(per_diem.get("full_rate_days", 0))
         )
         self.travel_rate_days_var.set(
-            str(per_diem["travel_rate_days"])
+            str(per_diem.get("travel_rate_days", 0))
+        )
+
+        self.meals_total_var.set(
+            f"${per_diem.get('meals_total', 0.00):.2f}"
+        )
+        self.incidentals_total_var.set(
+            f"${per_diem.get('incidentals_total', 0.00):.2f}"
         )
 
         self.booking_total_var.set(

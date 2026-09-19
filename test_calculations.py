@@ -236,6 +236,118 @@ class TestTravelCalculations(unittest.TestCase):
 
         self.assertEqual(total, 0.30)
 
+class TestPerDiemComponents(unittest.TestCase):
+
+    def setUp(self):
+        """Create a fresh travel request for each test."""
+        self.trip = create_travel_request()
+
+    def set_trip_dates(
+        self,
+        departure_date="10/19/2026",
+        return_date="11/13/2026",
+    ):
+        """Set representative trip dates."""
+        self.trip["traveler"]["departure_date"] = (
+            departure_date
+        )
+        self.trip["traveler"]["return_date"] = (
+            return_date
+        )
+
+    def test_meals_and_incidentals_are_calculated_separately(self):
+        self.set_trip_dates()
+
+        self.trip["per_diem"]["meals_rate"] = 130.00
+        self.trip["per_diem"]["incidentals_rate"] = 33.00
+
+        total = calculate_per_diem(self.trip)
+
+        self.assertEqual(
+            self.trip["per_diem"]["travel_days"],
+            26,
+        )
+        self.assertEqual(
+            self.trip["per_diem"]["full_rate_days"],
+            24,
+        )
+        self.assertEqual(
+            self.trip["per_diem"]["travel_rate_days"],
+            2,
+        )
+        self.assertEqual(
+            self.trip["per_diem"]["meals_total"],
+            3315.00,
+        )
+        self.assertEqual(
+            self.trip["per_diem"]["incidentals_total"],
+            841.50,
+        )
+        self.assertEqual(total, 4156.50)
+
+    def test_combined_daily_rate_is_stored(self):
+        self.set_trip_dates()
+
+        self.trip["per_diem"]["meals_rate"] = 130.00
+        self.trip["per_diem"]["incidentals_rate"] = 33.00
+
+        calculate_per_diem(self.trip)
+
+        self.assertEqual(
+            self.trip["per_diem"]["daily_rate"],
+            163.00,
+        )
+        self.assertEqual(
+            self.trip["per_diem"]["total"],
+            4156.50,
+        )
+
+    def test_two_day_trip_applies_75_percent_to_both_components(
+        self,
+    ):
+        self.set_trip_dates(
+            departure_date="10/19/2026",
+            return_date="10/20/2026",
+        )
+
+        self.trip["per_diem"]["meals_rate"] = 130.00
+        self.trip["per_diem"]["incidentals_rate"] = 33.00
+
+        total = calculate_per_diem(self.trip)
+
+        self.assertEqual(
+            self.trip["per_diem"]["meals_total"],
+            195.00,
+        )
+        self.assertEqual(
+            self.trip["per_diem"]["incidentals_total"],
+            49.50,
+        )
+        self.assertEqual(total, 244.50)
+
+    def test_negative_meals_rate_is_rejected(self):
+        self.set_trip_dates()
+
+        self.trip["per_diem"]["meals_rate"] = -130.00
+        self.trip["per_diem"]["incidentals_rate"] = 33.00
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Meals rate cannot be negative",
+        ):
+            calculate_per_diem(self.trip)
+
+    def test_negative_incidentals_rate_is_rejected(self):
+        self.set_trip_dates()
+
+        self.trip["per_diem"]["meals_rate"] = 130.00
+        self.trip["per_diem"]["incidentals_rate"] = -33.00
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Incidentals rate cannot be negative",
+        ):
+            calculate_per_diem(self.trip)
 
 if __name__ == "__main__":
     unittest.main()
