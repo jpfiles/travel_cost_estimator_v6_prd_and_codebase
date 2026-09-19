@@ -46,7 +46,8 @@ class TestTextReportGeneration(unittest.TestCase):
             "other_expenses"
         ]["baggage_fees"]["cost"] = 70.00
 
-        self.trip["per_diem"]["daily_rate"] = 100.00
+        self.trip["per_diem"]["meals_rate"] = 75.00
+        self.trip["per_diem"]["incidentals_rate"] = 25.00
 
         calculate_trip_totals(self.trip)
 
@@ -132,7 +133,15 @@ class TestTextReportGeneration(unittest.TestCase):
         report = generate_text_report(self.trip)
 
         self.assertIn(
-            "Daily Rate: $100.00",
+            "Meals Rate: $75.00",
+            report,
+        )
+        self.assertIn(
+            "Incidentals Rate: $25.00",
+            report,
+        )
+        self.assertIn(
+            "Combined M&IE Rate: $100.00",
             report,
         )
         self.assertIn(
@@ -145,6 +154,14 @@ class TestTextReportGeneration(unittest.TestCase):
         )
         self.assertIn(
             "Travel-Rate Days: 2",
+            report,
+        )
+        self.assertIn(
+            "Meals Subtotal: $412.50",
+            report,
+        )
+        self.assertIn(
+            "Incidentals Subtotal: $137.50",
             report,
         )
         self.assertIn(
@@ -265,7 +282,8 @@ class TestCsvAndHtmlReportGeneration(unittest.TestCase):
             "other_expenses"
         ]["baggage_fees"]["cost"] = 70.00
 
-        self.trip["per_diem"]["daily_rate"] = 100.00
+        self.trip["per_diem"]["meals_rate"] = 75.00
+        self.trip["per_diem"]["incidentals_rate"] = 25.00
 
         calculate_trip_totals(self.trip)
 
@@ -439,6 +457,48 @@ class TestCsvAndHtmlReportGeneration(unittest.TestCase):
             rows,
         )
 
+    def test_csv_report_contains_per_diem_components(self):
+        rows = self.parse_csv_report()
+
+        expected_rows = [
+            [
+                "Per Diem",
+                "Meals Rate",
+                "",
+                "75.00",
+            ],
+            [
+                "Per Diem",
+                "Incidentals Rate",
+                "",
+                "25.00",
+            ],
+            [
+                "Per Diem",
+                "Combined M&IE Rate",
+                "",
+                "100.00",
+            ],
+            [
+                "Per Diem",
+                "Meals Subtotal",
+                "",
+                "412.50",
+            ],
+            [
+                "Per Diem",
+                "Incidentals Subtotal",
+                "",
+                "137.50",
+            ],
+        ]
+
+        for expected_row in expected_rows:
+            self.assertIn(
+                expected_row,
+                rows,
+            )
+
     def test_csv_report_preserves_comma_inside_destination(self):
         rows = self.parse_csv_report()
 
@@ -589,6 +649,30 @@ class TestCsvAndHtmlReportGeneration(unittest.TestCase):
             html_report,
         )
 
+    def test_html_report_contains_per_diem_components(self):
+        html_report = reports.generate_html_report(
+            self.trip
+        )
+
+        expected_content = (
+            "Meals Rate",
+            "$75.00",
+            "Incidentals Rate",
+            "$25.00",
+            "Combined M&amp;IE Rate",
+            "$100.00",
+            "Meals Subtotal",
+            "$412.50",
+            "Incidentals Subtotal",
+            "$137.50",
+        )
+
+        for expected_value in expected_content:
+            self.assertIn(
+                expected_value,
+                html_report,
+            )
+
     def test_html_report_escapes_special_characters(self):
         self.trip["traveler"]["name"] = (
             "Jonah <Admin> & Co."
@@ -607,9 +691,6 @@ class TestCsvAndHtmlReportGeneration(unittest.TestCase):
             html_report,
         )
 
-
-if __name__ == "__main__":
-    unittest.main()
 
 if __name__ == "__main__":
     unittest.main()

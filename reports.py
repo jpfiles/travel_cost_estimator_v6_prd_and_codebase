@@ -77,7 +77,15 @@ def generate_text_report(travel_request):
     report_lines.append("PER DIEM")
     report_lines.append("-" * 50)
     report_lines.append(
-        f"Daily Rate: ${per_diem['daily_rate']:.2f}"
+        f"Meals Rate: ${per_diem['meals_rate']:.2f}"
+    )
+    report_lines.append(
+        "Incidentals Rate: "
+        f"${per_diem['incidentals_rate']:.2f}"
+    )
+    report_lines.append(
+        "Combined M&IE Rate: "
+        f"${per_diem['daily_rate']:.2f}"
     )
     report_lines.append(
         f"Travel Days: {per_diem['travel_days']}"
@@ -86,8 +94,16 @@ def generate_text_report(travel_request):
         f"Full-Rate Days: {per_diem['full_rate_days']}"
     )
     report_lines.append(
-        f"Travel-Rate Days: "
+        "Travel-Rate Days: "
         f"{per_diem['travel_rate_days']}"
+    )
+    report_lines.append(
+        "Meals Subtotal: "
+        f"${per_diem['meals_total']:.2f}"
+    )
+    report_lines.append(
+        "Incidentals Subtotal: "
+        f"${per_diem['incidentals_total']:.2f}"
     )
     report_lines.append(
         f"Per Diem Total: ${totals['per_diem']:.2f}"
@@ -190,7 +206,23 @@ def generate_csv_report(travel_request):
     writer.writerow(
         [
             "Per Diem",
-            "Daily Rate",
+            "Meals Rate",
+            "",
+            f"{per_diem['meals_rate']:.2f}",
+        ]
+    )
+    writer.writerow(
+        [
+            "Per Diem",
+            "Incidentals Rate",
+            "",
+            f"{per_diem['incidentals_rate']:.2f}",
+        ]
+    )
+    writer.writerow(
+        [
+            "Per Diem",
+            "Combined M&IE Rate",
             "",
             f"{per_diem['daily_rate']:.2f}",
         ]
@@ -217,6 +249,22 @@ def generate_csv_report(travel_request):
             "Travel-Rate Days",
             "",
             str(per_diem["travel_rate_days"]),
+        ]
+    )
+    writer.writerow(
+        [
+            "Per Diem",
+            "Meals Subtotal",
+            "",
+            f"{per_diem['meals_total']:.2f}",
+        ]
+    )
+    writer.writerow(
+        [
+            "Per Diem",
+            "Incidentals Subtotal",
+            "",
+            f"{per_diem['incidentals_total']:.2f}",
         ]
     )
 
@@ -449,7 +497,17 @@ def generate_html_report(travel_request):
             "    <table>",
             "        <tbody>",
             (
-                "            <tr><td>Daily Rate</td>"
+                "            <tr><td>Meals Rate</td>"
+                '<td class="amount">'
+                f"${per_diem['meals_rate']:.2f}</td></tr>"
+            ),
+            (
+                "            <tr><td>Incidentals Rate</td>"
+                '<td class="amount">'
+                f"${per_diem['incidentals_rate']:.2f}</td></tr>"
+            ),
+            (
+                "            <tr><td>Combined M&amp;IE Rate</td>"
                 '<td class="amount">'
                 f"${per_diem['daily_rate']:.2f}</td></tr>"
             ),
@@ -467,6 +525,16 @@ def generate_html_report(travel_request):
                 "            <tr><td>Travel-Rate Days</td>"
                 '<td class="amount">'
                 f"{per_diem['travel_rate_days']}</td></tr>"
+            ),
+            (
+                "            <tr><td>Meals Subtotal</td>"
+                '<td class="amount">'
+                f"${per_diem['meals_total']:.2f}</td></tr>"
+            ),
+            (
+                "            <tr><td>Incidentals Subtotal</td>"
+                '<td class="amount">'
+                f"${per_diem['incidentals_total']:.2f}</td></tr>"
             ),
             (
                 "            <tr><td>"
