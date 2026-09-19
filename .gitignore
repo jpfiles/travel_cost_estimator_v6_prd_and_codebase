@@ -18,3 +18,8 @@ Thumbs.db
 
 # macOS files
 .DS_Store
+
+# Reports
+reports/*.csv
+reports/*.html
+reports/*.txt

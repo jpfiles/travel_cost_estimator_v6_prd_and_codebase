@@ -2,8 +2,8 @@
 Shared configuration values for the Travel Cost Estimator.
 """
 
-APP_NAME = "Travel Cost Estimator"
-APP_VERSION = "0.96_beta"
+APP_NAME = "Travel Cost Calculator"
+APP_VERSION = "0.97_beta"
 WINDOW_TITLE = f"{APP_NAME} v{APP_VERSION}"
 
 DEFAULT_WINDOW_GEOMETRY = "1200x760"
