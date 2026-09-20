@@ -153,7 +153,7 @@ class TestTextReportGeneration(unittest.TestCase):
             report,
         )
         self.assertIn(
-            "Travel-Rate Days: 2",
+            "Travel-Rate Days (75%): 2",
             report,
         )
         self.assertIn(
@@ -491,6 +491,12 @@ class TestCsvAndHtmlReportGeneration(unittest.TestCase):
                 "",
                 "137.50",
             ],
+                        [
+                "Per Diem",
+                "Travel-Rate Days (75%)",
+                "",
+                "2",
+            ],
         ]
 
         for expected_row in expected_rows:
@@ -665,6 +671,7 @@ class TestCsvAndHtmlReportGeneration(unittest.TestCase):
             "$412.50",
             "Incidentals Subtotal",
             "$137.50",
+            "Travel-Rate Days (75%)",
         )
 
         for expected_value in expected_content:

@@ -94,7 +94,7 @@ def generate_text_report(travel_request):
         f"Full-Rate Days: {per_diem['full_rate_days']}"
     )
     report_lines.append(
-        "Travel-Rate Days: "
+        "Travel-Rate Days (75%): "
         f"{per_diem['travel_rate_days']}"
     )
     report_lines.append(
@@ -246,7 +246,7 @@ def generate_csv_report(travel_request):
     writer.writerow(
         [
             "Per Diem",
-            "Travel-Rate Days",
+            "Travel-Rate Days (75%)",
             "",
             str(per_diem["travel_rate_days"]),
         ]
@@ -522,7 +522,7 @@ def generate_html_report(travel_request):
                 f"{per_diem['full_rate_days']}</td></tr>"
             ),
             (
-                "            <tr><td>Travel-Rate Days</td>"
+                "            <tr><td>Travel-Rate Days (75%)</td>"
                 '<td class="amount">'
                 f"{per_diem['travel_rate_days']}</td></tr>"
             ),
